@@ -29,6 +29,40 @@ import { AntDesign } from '@expo/vector-icons'
 import PassView from './passview'
 import HomeGif from '../../utils/HomeGif'
 import OjoCerradoSVG from '../../components/svg/OjoCerradoSVG'
+import { getAuth, GoogleAuthProvider, signInWithPopup, linkWithPopup, createUserWithEmailAndPassword } from "firebase/auth";
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+
+const auth = getAuth();
+const db = getFirestore();
+const googleProvider = new GoogleAuthProvider();
+
+const registerOrLinkGoogleAccount = async () => {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    const user = result.user;
+
+    const userDocRef = doc(db, "users", user.uid);
+    const userSnapshot = await getDoc(userDocRef);
+
+    if (userSnapshot.exists()) {
+      // Si el usuario ya existe, vincula el nuevo método de autenticación
+      console.log("El usuario ya existe:", userSnapshot.data());
+      if (!user.providerData.some((provider) => provider.providerId === googleProvider.providerId)) {
+        await linkWithPopup(user, googleProvider);
+        console.log("Cuenta de Google vinculada");
+      }
+    } else {
+      // Si no existe, crea un nuevo usuario
+      await setDoc(userDocRef, {
+        email: user.email,
+        providers: [user.providerData[0].providerId],
+      });
+      console.log("Nuevo usuario creado");
+    }
+  } catch (error) {
+    console.error("Error al registrar o vincular cuenta de Google: ", error);
+  }
+};
 
 const Registrarse = () => {
   const [nombreError, setNombreError] = useState('')
@@ -55,7 +89,7 @@ const Registrarse = () => {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isEmailValid, setEmailValid] = useState(false)
   const [passview1, setPassview1] = useState(true)
-  const [passview2, setPassview2] = useState(true)
+  const [passview2, setPassview2] = useState(false) // Se cambió a false para mostrar la contraseña por defecto
 
   useEffect(() => {
     dispatch(getAllUsers())
@@ -86,7 +120,7 @@ const Registrarse = () => {
     setChecked(!isChecked)
   }
 
-  const submit = () => {
+  const submit = async () => {
     if (
       valuesUser.email &&
       valuesUser.nickname &&
@@ -102,16 +136,35 @@ const Registrarse = () => {
           return
         }
         if (valuesUser.password === confirmPassword) {
-          dispatch(create(valuesUser))
-          navigation.navigate('IniciarSesin', { isPlayer })
+          try {
+            // Crea el usuario con email y contraseña
+            await createUserWithEmailAndPassword(auth, valuesUser.email, valuesUser.password);
+            
+            // Guarda la información del usuario en Firestore
+            const userDocRef = doc(db, "users", auth.currentUser.uid);
+            await setDoc(userDocRef, {
+              email: valuesUser.email,
+              providers: ['password'],
+              nickname: valuesUser.nickname
+            });
+
+            // Actualiza el estado en Redux
+            dispatch(create(valuesUser))
+
+            navigation.navigate('IniciarSesin', { isPlayer })
+          } catch (error) {
+            console.error("Error al registrar usuario: ", error);
+            Alert.alert('Error al registrar usuario')
+          }
         } else {
-          Alert.alert('Las contraseñas no coinciden')
+          Alert.alert('Las contraseñas no coinciden')
         }
       }
     } else {
       Alert.alert('Debes llenar todos los campos')
     }
   }
+
   const { height, width } = useWindowDimensions()
 
   return (
@@ -234,11 +287,12 @@ const Registrarse = () => {
                         }}
                       >
                         <Image
-                          style={styles.vectorIcon}
+                          style={styles.simboloIcon2}
                           contentFit="cover"
-                          source={require('../../assets/vector4.png')}
+                          source={require('../../assets/simbolo5.png')}
                         />
                         <TextInput
+                          ref={emailInputRef}
                           style={{
                             color: Color.wHITESPORTSMATCH,
                             fontFamily: FontFamily.t4TEXTMICRO,
@@ -247,489 +301,241 @@ const Registrarse = () => {
                             textAlign: 'left',
                             width: '80%'
                           }}
-                          placeholder="E-mail"
+                          placeholder="Correo electrónico"
                           placeholderTextColor="#999"
-                          autoCapitalize="none"
                           value={valuesUser.email}
                           onChangeText={(value) => {
-                            console.log(`email: ${value}`) // Log email value
                             seterValues('email', value)
                           }}
-                          ref={emailInputRef}
                           onSubmitEditing={() => {
                             passwordInputRef.current.focus()
                           }}
                         />
-
-                        {!isEmailValid ? (
-                          <View
-                            style={{ position: 'absolute', right: 14, top: 9 }}
-                          >
-                            <AntDesign
-                              name="close"
-                              color={'#ff0000'}
-                              size={20}
-                            />
-                          </View>
-                        ) : (
-                          <View
-                            style={{ position: 'absolute', right: 14, top: 9 }}
-                          >
-                            <AntDesign
-                              name="check"
-                              color={'#00ff00'}
-                              size={20}
-                            />
-                          </View>
-                        )}
                       </View>
                     </View>
-                    <View style={[styles.campo3Frame, styles.framePosition]}>
-                      <View style={styles.contraseaFrame}>
+                    <View style={styles.campo3}>
+                      <View
+                        style={{
+                          gap: 5,
+                          alignItems: 'center',
+                          justifyContent: 'flex-start',
+                          paddingHorizontal: Padding.p_mini,
+                          borderColor: Color.gREY2SPORTSMATCH,
+                          borderWidth: 1,
+                          borderRadius: Border.br_81xl,
+                          flexDirection: 'row',
+                          height: 40
+                        }}
+                      >
                         <Image
-                          style={styles.simboloIcon2}
+                          style={styles.simboloIcon3}
                           contentFit="cover"
-                          source={require('../../assets/simbolo3.png')}
+                          source={require('../../assets/simbolo6.png')}
                         />
-                        <TextInput
-                          style={{
-                            color: Color.wHITESPORTSMATCH,
-                            fontFamily: FontFamily.t4TEXTMICRO,
-                            fontSize: FontSize.t2TextSTANDARD_size,
-                            marginLeft: 10,
-                            textAlign: 'left',
-                            width: '87%'
-                          }}
+                        <PassView
+                          style={styles.entrada}
+                          isVisible={passview1}
+                          onPress={() => setPassview1(!passview1)}
+                          onChangeText={(value) => seterValues('password', value)}
                           placeholder="Contraseña"
-                          placeholderTextColor="#999"
-                          secureTextEntry={passview1}
                           value={valuesUser.password}
-                          onChangeText={(value) => {
-                            console.log(`password: ${value}`) // Log password value
-                            seterValues('password', value)
-                          }}
                           ref={passwordInputRef}
                           onSubmitEditing={() => {
                             confirmPasswordInputRef.current.focus()
                           }}
                         />
-                        <TouchableOpacity
-                          onPress={() => setPassview1(!passview1)}
-                        >
-                          {passview1 ? (
-                            <PassView></PassView>
-                          ) : (
-                            <OjoCerradoSVG></OjoCerradoSVG>
-                          )}
-                        </TouchableOpacity>
                       </View>
                     </View>
-                    <View style={[styles.campo3Frame, styles.framePosition]}>
-                      <View style={styles.contraseaFrame}>
+                    <View style={styles.campo4}>
+                      <View
+                        style={{
+                          gap: 5,
+                          alignItems: 'center',
+                          justifyContent: 'flex-start',
+                          paddingHorizontal: Padding.p_mini,
+                          borderColor: Color.gREY2SPORTSMATCH,
+                          borderWidth: 1,
+                          borderRadius: Border.br_81xl,
+                          flexDirection: 'row',
+                          height: 40
+                        }}
+                      >
                         <Image
-                          style={styles.simboloIcon2}
+                          style={styles.simboloIcon4}
                           contentFit="cover"
-                          source={require('../../assets/simbolo3.png')}
+                          source={require('../../assets/simbolo7.png')}
                         />
-                        <TextInput
-                          style={{
-                            color: Color.wHITESPORTSMATCH,
-                            fontFamily: FontFamily.t4TEXTMICRO,
-                            fontSize: FontSize.t2TextSTANDARD_size,
-                            marginLeft: 10,
-                            textAlign: 'left',
-                            width: '87%'
-                          }}
-                          placeholder="Confirmar contraseña"
-                          placeholderTextColor="#999"
-                          secureTextEntry={passview2}
-                          value={confirmPassword}
-                          onChangeText={(value) => {
-                            console.log(`confirmPassword: ${value}`) // Log confirmPassword value
-                            setConfirmPassword(value)
-                          }}
-                          ref={confirmPasswordInputRef}
-                          onSubmitEditing={submit}
-                        />
-                        <TouchableOpacity
+                        <PassView
+                          style={styles.entrada}
+                          isVisible={passview2}
                           onPress={() => setPassview2(!passview2)}
-                        >
-                          {passview2 ? (
-                            <PassView></PassView>
-                          ) : (
-                            <OjoCerradoSVG></OjoCerradoSVG>
-                          )}
-                        </TouchableOpacity>
+                          onChangeText={(value) => setConfirmPassword(value)}
+                          placeholder="Confirmar contraseña"
+                          value={confirmPassword}
+                          ref={confirmPasswordInputRef}
+                        />
                       </View>
                     </View>
                   </View>
-                </View>
-              </View>
-              <View style={{ height: 40, marginTop: 36, width: 360 }}>
-                <View
-                  style={{
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    marginHorizontal: 5
-                  }}
-                >
-                  {nombreError !== '' && (
-                    <Text style={{ color: 'red', fontWeight: '400' }}>
-                      {nombreError}
-                    </Text>
-                  )}
+                  <Text
+                    style={[
+                      styles.errorMessage,
+                      { color: nombreError ? Color.rEDED2 : 'transparent' }
+                    ]}
+                  >
+                    {nombreError}
+                  </Text>
                 </View>
 
-                <View
-                  style={[
-                    styles.botonRegistrate,
-                    { marginTop: nombreError ? 10 : 18 }
-                  ]}
+                <CheckBox
+                  style={styles.checkbox}
+                  onClick={handleCheckboxToggle}
+                  isChecked={isChecked}
+                  rightText="Acepto los términos y condiciones"
+                  rightTextStyle={{ color: Color.wHITESPORTSMATCH }}
+                  checkBoxColor={Color.wHITESPORTSMATCH}
+                  uncheckedCheckBoxColor={Color.gREY2SPORTSMATCH}
+                  underlayColor="transparent"
+                />
+                <Pressable
+                  style={styles.boton1}
+                  onPress={submit}
                 >
-                  <TouchableOpacity
-                    style={[styles.loremIpsum, styles.loremPosition]}
-                    onPress={submit}
+                  <Text style={[styles.boton1Texto, styles.boton1Texto1]}>
+                    Registrarse
+                  </Text>
+                </Pressable>
+                <View
+                  style={{
+                    marginVertical: 10,
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: Color.wHITESPORTSMATCH,
+                      fontSize: FontSize.t2TextSTANDARD_size
+                    }}
                   >
-                    <View style={styles.loremIpsum1}>
-                      <Text style={styles.aceptar}>Regístrate</Text>
-                    </View>
-                  </TouchableOpacity>
+                    O regístrate con
+                  </Text>
+                  <Pressable onPress={registerOrLinkGoogleAccount} style={styles.googleLogin}>
+                    <AntDesign name="google" size={24} color="white" />
+                    <Text style={styles.googleText}>Google</Text>
+                  </Pressable>
                 </View>
               </View>
             </View>
-            <View style={[{ marginTop: nombreError ? 26 : 24 }]}>
-              <Pressable
-                style={styles.yaTenesUnaContainer}
-                onPress={() => navigation.navigate('IniciarSesin')}
-              >
-                <Text
-                  style={[styles.yaTenesUnaCuentaIniciaS, styles.eMailTypo]}
-                >
-                  ¿Ya tienes una cuenta? Inicia sesión
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-        <View
-          style={{
-            marginTop: 30,
-            flexDirection: 'row',
-            alignItems: 'center',
-            position: 'absolute',
-            width: '90%',
-            alignSelf: 'center',
-            justifyContent: 'center',
-            bottom: 0
-          }}
-        >
-          <View
-            style={{
-              flexDirection: 'column',
-              width: '100%',
-              gap: 10
-            }}
-          >
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'flex-start',
-                width: '100%'
-              }}
-            >
-              <View
-                style={{
-                  width: 20,
-                  justifyContent: 'center'
-                }}
-              >
-                <CheckBox
-                  isChecked={isChecked}
-                  onClick={handleCheckboxToggle}
-                  checkBoxColor="#999"
-                />
-              </View>
-              <Text
-                style={{
-                  fontSize: FontSize.t4TEXTMICRO_size,
-                  color: Color.gREY2SPORTSMATCH,
-                  textAlign: 'center',
-                  fontFamily: FontFamily.t4TEXTMICRO,
-                  width: '95%'
-                }}
-              >
-                Estoy de acuerdo en recibir información promocional y
-                publicitaria a través del correo electrónico
-              </Text>
-            </View>
-            <Text
-              style={{
-                fontSize: FontSize.t4TEXTMICRO_size,
-                color: Color.gREY2SPORTSMATCH,
-                textAlign: 'center',
-                fontFamily: FontFamily.t4TEXTMICRO
-              }}
-            >
-              Al continuar, aceptas automáticamente nuestras Condiciones,
-              Polítíca de privacidad y Polítíca de cookies
-            </Text>
           </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   )
 }
-
 const styles = StyleSheet.create({
-  timeTypo: {
-    fontSize: FontSize.t2TextSTANDARD_size,
-    color: Color.wHITESPORTSMATCH
-  },
-  titularLayout: {
-    width: 390,
-    textAlign: 'center'
-  },
-  eMailSpaceBlock: {
-    marginLeft: 10,
-    textAlign: 'left'
-  },
-  loginSwitchChild: {
-    marginBottom: 0, // o el modo de ajuste que prefieras
-    width: 200,
-    height: 200,
-    top: -10,
-    // bottom: '75%',
-    position: 'absolute',
-    transform: [{ rotate: '45deg' }],
-    right: -85,
-    zIndex: 0,
-    overflow: 'hidden'
-    // Ajusta este valor según sea necesario para reducir el tamaño de la imagen
-  },
-  loginSwitchChild2: {
-    // backgroundColor: 'red',
-    width: 270,
-    height: 270,
-    // bottom: '75%',
-    top: -20,
-    left: -40,
-    transform: [{ rotate: '-45deg' }],
-    zIndex: 0
-    // Ajusta este valor según sea necesario para reducir el tamaño de la imagen
-  },
-  framePosition: {
-    paddingBottom: Padding.p_3xs,
-    paddingTop: Padding.p_3xs,
-    paddingLeft: Padding.p_mini,
-    borderWidth: 1,
-    borderColor: Color.gREY2SPORTSMATCH,
-    borderStyle: 'solid',
-    borderRadius: Border.br_81xl,
-    top: 0,
-    flexDirection: 'row',
-    left: 0,
-    overflow: 'hidden'
-  },
-  eMailTypo: {
-    color: Color.gREY2SPORTSMATCH,
-    fontFamily: FontFamily.t4TEXTMICRO,
-    fontSize: FontSize.t2TextSTANDARD_size
-  },
-  loremPosition: {
-    height: '100%',
-    width: '100%'
-  },
-  textoTypo: {
-    fontSize: FontSize.t4TEXTMICRO_size,
-    color: Color.gREY2SPORTSMATCH,
-    textAlign: 'center',
-    fontFamily: FontFamily.t4TEXTMICRO,
-    width: '80%'
-  },
-  simboloIcon: {
-    width: 9,
-    height: 15
-  },
-  atrs1: {
-    textAlign: 'center',
-    color: Color.wHITESPORTSMATCH,
-    fontFamily: FontFamily.t4TEXTMICRO
-  },
-  atrs: {
-    marginLeft: 5
-  },
-  botonAtrasFrame: {
-    paddingHorizontal: Padding.p_xl,
+  formularioFrame: {
+    backgroundColor: Color.bLACK1SPORTSMATCH,
+    borderRadius: Border.br_21xl,
+    justifyContent: 'center',
     alignItems: 'center',
-    flexDirection: 'row',
-    position: 'absolute',
-    top: '15%'
+    flex: 1,
+    padding: Padding.p_mini
   },
-  titular: {
-    fontSize: FontSize.h1TitleHUGE_size,
-    lineHeight: 40,
-    fontWeight: '500',
-    color: Color.wHITESPORTSMATCH,
-    fontFamily: FontFamily.t4TEXTMICRO
-  },
-  simboloIcon1: {
-    width: 22,
-    height: 22
-  },
-  nombre: {
-    height: 19,
-    color: Color.wHITESPORTSMATCH,
-    fontFamily: FontFamily.t4TEXTMICRO,
-    fontSize: FontSize.t2TextSTANDARD_size
-  },
-  campo1Frame: {
-    gap: 5,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
+  formularioTextoLegal: {
     paddingHorizontal: Padding.p_mini,
-    borderColor: Color.gREY2SPORTSMATCH,
-    borderWidth: 1,
-    borderRadius: Border.br_81xl,
-    flexDirection: 'row',
-    height: 40
-  },
-  campo1: {
-    width: 359,
-    height: 43
-  },
-  vectorIcon: {
-    width: 21,
-    height: 16
-  },
-  campo2Frame: {
-    paddingRight: Padding.p_12xs
-  },
-  campo2: {
-    height: 38,
-    marginTop: 11,
-    width: 360
-  },
-  simboloIcon2: {
-    width: 14,
-    height: 18
-  },
-  contraseaFrame: {
-    alignItems: 'center',
-    flexDirection: 'row'
-  },
-  campo3Frame: {
-    height: 39,
-    paddingRight: 23,
-    width: 360,
-    marginTop: 15
-  },
-  campo3: {
-    alignSelf: 'stretch',
-    marginTop: 15,
-    flex: 1
-  },
-  campos: {
-    marginTop: 34,
-    flex: 1
-  },
-  titularcampos: {
-    alignItems: 'center',
-    flex: 1
+    paddingVertical: Padding.p_sm,
+    alignItems: 'center'
   },
   camposFormulario: {
-    height: 259
-  },
-  aceptar: {
-    fontSize: FontSize.button_size,
-    fontWeight: '700',
-    color: Color.bLACK1SPORTSMATCH,
-    textAlign: 'center',
-    fontFamily: FontFamily.t4TEXTMICRO
-  },
-  loremIpsum1: {
+    flex: 1,
     justifyContent: 'center',
-    backgroundColor: Color.wHITESPORTSMATCH,
-    width: 360,
-
+    width: '100%',
+    paddingHorizontal: Padding.p_mini
+  },
+  titularcampos: {
+    marginBottom: 20
+  },
+  titular: {
+    fontSize: FontSize.size_36,
+    fontFamily: FontFamily.t4TEXTMICRO,
+    color: Color.wHITESPORTSMATCH
+  },
+  campos: {
+    gap: 15
+  },
+  campo1: {
+    marginBottom: 15
+  },
+  campo2: {
+    marginBottom: 15
+  },
+  campo3: {
+    marginBottom: 15
+  },
+  campo4: {
+    marginBottom: 15
+  },
+  boton1: {
+    backgroundColor: Color.bLUE1SPORTSMATCH,
+    paddingVertical: 15,
+    paddingHorizontal: 30,
     borderRadius: Border.br_81xl,
     alignItems: 'center',
-    flexDirection: 'row'
+    justifyContent: 'center'
   },
-  loremIpsum: {
-    flexDirection: 'row'
+  boton1Texto: {
+    color: Color.wHITESPORTSMATCH,
+    fontSize: FontSize.t2TextSTANDARD_size,
+    fontFamily: FontFamily.t4TEXTMICRO
   },
-  botonRegistrate: {
-    height: 40,
-    marginTop: 36,
-    width: 360
+  boton1Texto1: {
+    fontWeight: 'bold'
   },
-  formularioFrame: {
-    alignItems: 'center'
-  },
-  yaTenesUnaCuentaIniciaS: {
-    width: 390,
-    textAlign: 'center'
-  },
-  yaTenesUnaContainer: {
-    marginTop: 27,
-    alignItems: 'center'
-  },
-  texto1: {
-    lineHeight: 14,
-    zIndex: 0
-  },
-  textoLegalFrame: {
+  botonAtrasFrame: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'flex-start'
+    alignItems: 'center',
+    marginHorizontal: Padding.p_mini,
+    marginVertical: Padding.p_sm
   },
-  textoInferior: {
-    marginTop: 9
+  simboloIcon: {
+    width: 24,
+    height: 24
   },
-  textoLegal: {
-    marginTop: 42
+  simboloIcon1: {
+    width: 20,
+    height: 20
   },
-  formulariotextoLegal: {
-    marginTop: 15
+  simboloIcon2: {
+    width: 20,
+    height: 20
   },
-  contenido: {
-    // justifyContent: 'center',
-    marginTop: '20%',
-    height: '100%'
+  simboloIcon3: {
+    width: 20,
+    height: 20
   },
-  fondoIcon: {
-    marginBottom: 0, // o el modo de ajuste que prefieras
-    // backgroundColor: 'red',
-    width: '150%',
-    height: '40%',
-    // top: '20%',
-    // bottom: '75%',
-    position: 'absolute',
-    left: '-25%',
-    zIndex: 0,
-    transform: [{ scale: 0.7 }] //
+  simboloIcon4: {
+    width: 20,
+    height: 20
   },
-  registrarse: {
-    overflow: 'hidden',
-    width: '100%',
-    flex: 1,
-    backgroundColor: Color.bLACK1SPORTSMATCH
+  errorMessage: {
+    fontSize: FontSize.t2TextSTANDARD_size,
+    marginTop: 5
   },
-  errorEmail: {
-    color: 'red',
-    bottom: 8,
-    fontWeight: '700',
-    fontSize: 18,
-    marginLeft: '95%',
-    position: 'absolute'
+  checkbox: {
+    marginBottom: 20
   },
-  successEmail: {
-    color: 'green',
-    bottom: 8,
-    fontWeight: '700',
-    fontSize: 18,
-    marginLeft: '95%',
-    position: 'absolute'
+  googleLogin: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4285F4',
+    padding: 10,
+    borderRadius: Border.br_81xl
+  },
+  googleText: {
+    color: 'white',
+    marginLeft: 10,
+    fontSize: FontSize.t2TextSTANDARD_size
   }
 })
 

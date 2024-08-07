@@ -50,7 +50,7 @@ const IniciarSesin = () => {
   const navigation = useNavigation()
   const [passview2, setPassview2] = useState(true)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState({ message: '', type: '' })
 
   const route = useRoute()
 
@@ -82,7 +82,7 @@ const IniciarSesin = () => {
       dispatch(login(valuesUser))
         .then(async (response) => {
           console.log(response, 'responde el login')
-
+  
           dispatch(
             setIsSpotMan(
               response?.payload?.user?.type === 'club' ? false : true
@@ -130,12 +130,25 @@ const IniciarSesin = () => {
         })
         .catch((error) => {
           setLoading(false)
-          setError('Usuario o contraseña incorrecto/s')
-
+          setError({ message: 'Usuario o contraseña incorrecto/s', type: 'login' })
           console.error(error)
         })
+    } else {
+      setLoading(false)
+      setError({ message: 'Por favor, complete todos los campos', type: 'validation' })
     }
   }
+  {error.message && (
+    <Text
+      style={[
+        styles.errorMessage,
+        error.type === 'login' ? styles.errorLogin : styles.errorValidation
+      ]}
+    >
+      {error.message}
+    </Text>
+  )}
+  
   const { height, width } = useWindowDimensions()
 
   return (
@@ -460,7 +473,21 @@ const styles = StyleSheet.create({
   iniciarSesin: {
     flex: 1,
     backgroundColor: Color.bLACK1SPORTSMATCH
-  }
-})
+  },
+
+     errorMessage: {
+      marginTop: 10,
+      textAlign: 'center',
+      fontSize: FontSize.t2TextSTANDARD_size,
+      color: Color.gREY2SPORTSMATCH,
+    },
+    errorLogin: {
+      color: 'red'
+    },
+    errorValidation: {
+      color: 'orange'
+    },
+  })
+
 
 export default IniciarSesin

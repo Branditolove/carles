@@ -1,137 +1,124 @@
 import React, { useContext } from 'react'
-import { Image } from 'expo-image'
-import {
-  StyleSheet,
-  Pressable,
-  Text,
-  View,
-  TouchableOpacity
-} from 'react-native'
-import {
-  useNavigation,
-  StackActions,
-  CommonActions
-} from '@react-navigation/native'
-import {
-  FontSize,
-  Color,
-  FontFamily,
-  Border,
-  Padding
-} from '../../../GlobalStyles'
+import { StyleSheet, Text, View, TouchableOpacity } from 'react-native'
+import { useNavigation } from '@react-navigation/native'
 import { useDispatch } from 'react-redux'
-import {
-  cleanUser,
-  clearUser,
-  logedOut
-} from '../../../redux/slices/users.slices'
-// import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { LoginManager } from 'react-native-fbsdk-next'
-import { auth } from '../../../firebaseConfig'
 import { signOut } from 'firebase/auth'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { auth } from '../../../firebaseConfig'
 import {
+  cleanUser,
   cleanSportman,
-  clearSportman
-} from '../../../redux/slices/sportman.slices'
+  cleanClub,
+  cleanPost,
+  cleanOffers,
+  cleanPosition,
+  cleanSports,
+} from '../../../redux/slices/'
+import {
+  resetChatsSlices,
+  resetCommentsSlices,
+  resetMatchsSlices,
+  resetMuroSlices,
+  resetNotificationsSlices,
+} from '../../../redux/slices'
 import CustomHeaderBack from '../../../components/CustomHeaderBack'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { cleanClub } from '../../../redux/slices/club.slices'
-import { cleanPost } from '../../../redux/slices/post.slices'
-import { resetChatsSlices } from '../../../redux/slices/chats.slices'
-import { resetCommentsSlices } from '../../../redux/slices/comments.slices'
-import { resetMatchsSlices } from '../../../redux/slices/matchs.slices'
-import { resetMuroSlices } from '../../../redux/slices/muro.slices'
-import { resetNotificationsSlices } from '../../../redux/slices/notifications.slices'
-import { cleanOffers } from '../../../redux/slices/offers.slices'
-import { cleanPosition } from '../../../redux/slices/positions.slices'
-import { cleanSports } from '../../../redux/slices/sports.slices'
 import { Context } from '../../../context/Context'
+import { LoginManager } from 'react-native-fbsdk-next'
+import { GoogleSignin } from '@react-native-google-signin/google-signin'
 
-const CerrarSesin = () => {
+const CerrarSesion = () => {
   const { setUsersWithMessages } = useContext(Context)
   const navigation = useNavigation()
   const dispatch = useDispatch()
-  const firebaseLogout = () => {
-    signOut(auth)
+
+  const firebaseLogout = async () => {
+    try {
+      await signOut(auth)
+      console.log('Firebase logout successful')
+    } catch (error) {
+      console.error('Error signing out from Firebase: ', error)
+    }
   }
-  // const signOutGoogle = async () => {
-  //   console.log('sign out google')
-  //   try {
-  //     await GoogleSignin.revokeAccess();
-  //     await GoogleSignin.signOut();
-  //     // Perform any additional clean-up or navigation logic as needed
-  //   } catch (error) {
-  //     console.error('Error signing out from Google: ', error);
-  //   }
-  // };
+
+  const signOutGoogle = async () => {
+    console.log('Attempting to sign out from Google')
+    try {
+      await GoogleSignin.revokeAccess()
+      await GoogleSignin.signOut()
+      console.log('Google sign out successful')
+    } catch (error) {
+      console.error('Error signing out from Google: ', error)
+    }
+  }
+
   const signOutFacebook = async () => {
     try {
       await LoginManager.logOut()
-      // Perform any additional clean-up or navigation logic as needed
+      console.log('Facebook logout successful')
     } catch (error) {
       console.error('Error signing out from Facebook: ', error)
     }
   }
 
+  const handleLogout = async () => {
+    console.log('Starting logout process...')
+    setUsersWithMessages([])
+
+    await AsyncStorage.removeItem('userAuth')
+    await AsyncStorage.removeItem('googleAuth')
+    await AsyncStorage.removeItem('facebookAuth')
+    await AsyncStorage.removeItem('@user')
+
+    dispatch(cleanSportman())
+    dispatch(cleanUser())
+    dispatch(cleanPost())
+    dispatch(cleanClub())
+    dispatch(resetChatsSlices())
+    dispatch(resetCommentsSlices())
+    dispatch(resetMatchsSlices())
+    dispatch(resetMuroSlices())
+    dispatch(resetNotificationsSlices())
+    dispatch(cleanOffers())
+    dispatch(cleanPosition())
+    dispatch(cleanSports())
+
+    await firebaseLogout()
+    await signOutGoogle() // Ensure Google logout is also handled
+    await signOutFacebook()
+
+    console.log('Navigation to LoginSwitch')
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'LoginSwitch' }],
+    })
+  }
+
   return (
-    <SafeAreaView style={styles.cerrarSesin}>
-      <CustomHeaderBack header={'Cerrar sesión'}></CustomHeaderBack>
+    <SafeAreaView style={styles.cerrarSesion}>
+      <CustomHeaderBack header={'Cerrar sesión'} />
       <View style={styles.cabezera}>
-        <View
-          style={{
-            justifyContent: 'center',
-            alignItems: 'stretch',
-            height: '100%'
-          }}
-        >
-          <View style={styles.texto}>
-            <Text style={styles.estsSeguroQueContainer}>
-              <Text style={styles.estsSeguroQue}>{`Estás seguro que 
-quieres `}</Text>
-              <Text style={styles.cerrarTypo}>cerrar</Text>
-              <Text style={styles.estsSeguroQue}> la sesión?</Text>
-            </Text>
-            <View style={styles.boton}>
-              <TouchableOpacity
-                style={[styles.loremIpsum, styles.loremIpsumFlexBox]}
-                onPress={async () => {
-                  console.log('setting userswithmessages to []...')
-                  setUsersWithMessages([])
-                  await AsyncStorage.removeItem('userAuth')
-                  await AsyncStorage.removeItem('googleAuth')
-                  await AsyncStorage.removeItem('facebookAuth')
-                  await AsyncStorage.removeItem('@user')
-                  await dispatch(cleanSportman())
-                  await dispatch(cleanUser())
-                  await dispatch(cleanPost())
-                  await dispatch(cleanClub())
-                  await dispatch(resetChatsSlices())
-                  await dispatch(resetCommentsSlices())
-                  await dispatch(resetMatchsSlices())
-                  await dispatch(resetMuroSlices())
-                  await dispatch(resetNotificationsSlices())
-                  await dispatch(cleanOffers())
-                  await dispatch(cleanPosition())
-                  await dispatch(cleanSports())
-                  await firebaseLogout()
-                  navigation.reset({
-                    index: 0,
-                    history: false,
-                    routes: [{ name: 'LoginSwitch' }]
-                  })
-                }}
-              >
-                <Text style={[styles.aceptar, styles.cerrarTypo]}>
-                  Cerrar sesión
-                </Text>
-              </TouchableOpacity>
-            </View>
+        <View style={styles.texto}>
+          <Text style={styles.estsSeguroQueContainer}>
+            <Text style={styles.estsSeguroQue}>{`Estás seguro que \nquieres `}</Text>
+            <Text style={styles.cerrarTypo}>cerrar</Text>
+            <Text style={styles.estsSeguroQue}> la sesión?</Text>
+          </Text>
+          <View style={styles.boton}>
+            <TouchableOpacity
+              style={[styles.loremIpsum, styles.loremIpsumFlexBox]}
+              onPress={handleLogout}
+            >
+              <Text style={[styles.aceptar, styles.cerrarTypo]}>
+                Cerrar sesión
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
     </SafeAreaView>
   )
+
 }
 
 const styles = StyleSheet.create({

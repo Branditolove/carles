@@ -9,7 +9,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>Sportsmatch</string>
+    <string>SportsMatch</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -37,7 +37,7 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>exp+sportsmatch</string>
+          <string>exp+nuevappp</string>
         </array>
       </dict>
     </array>

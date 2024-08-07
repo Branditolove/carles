@@ -22,7 +22,7 @@ export const getUserData = createAsyncThunk('getUserData/users', async (id) => {
 export const loginWithGoogle = createAsyncThunk(
   'users/loginWithGoogle',
   async (body) => {
-    //console.log('data from google login: ', body)
+    console.log('data from google login: ', body)
     try {
       // const { data } = await axiosInstance.patch(`/users/${id}`, body)
       return body
