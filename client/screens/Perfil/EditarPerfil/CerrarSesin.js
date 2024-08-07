@@ -13,7 +13,7 @@ import {
   cleanOffers,
   cleanPosition,
   cleanSports,
-} from '../../../redux/slices/'
+} from '../../../redux/slices'
 import {
   resetChatsSlices,
   resetCommentsSlices,
